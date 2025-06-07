@@ -1,0 +1,18 @@
+[package]
+name                   = "helios-assembler"
+description            = "SBPF Assembler"
+version.workspace      = true
+authors.workspace      = true
+homepage.workspace     = true
+readme.workspace       = true
+repository.workspace   = true
+license.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+categories.workspace   = true
+keywords.workspace     = true
+
+[dependencies]
+num-derive = "0.4"
+num-traits = "0.2"
+snafu      = "0.8"

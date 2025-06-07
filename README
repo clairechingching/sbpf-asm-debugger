@@ -1,0 +1,12 @@
+Usage: 
+
+```
+cargo run <input_file>
+```
+
+Example:
+
+```
+cargo run test_file/noop.s
+```
+

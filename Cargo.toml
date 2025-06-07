@@ -1,0 +1,37 @@
+[workspace.package]
+version      = "0.1.0"
+authors      = ["Zeus Network <dev@zeusnetwork.xyz>"]
+homepage     = "https://zeusnetwork.xyz/"
+repository   = "https://github.com/ZeusNetworkHQ/helios"
+readme       = "README.md"
+license      = "MIT OR Apache-2.0"
+edition      = "2024"
+rust-version = "1.85"
+description  = ""
+categories   = ["assembler", "vm"]
+keywords     = ["assembler", "vm", "solana"]
+publish      = false
+
+[workspace]
+members = ["crates/assembler", "crates/vm", "helios"]
+
+resolver = "3"
+
+[workspace.dependencies]
+clap          = { version = "4", features = ["derive", "env"] }
+clap_complete = "4"
+exitcode      = "1"
+num-derive    = "0.4"
+num-traits    = "0.2"
+shadow-rs     = "0.38"
+snafu         = "0.8"
+
+helios-assembler = { path = "./crates/assembler" }
+helios-vm = { path = "./crates/vm" }
+
+[profile.release]
+opt-level       = 3
+overflow-checks = true
+
+[profile.dev]
+opt-level = 0

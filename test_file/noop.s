@@ -1,0 +1,4 @@
+.globl entry
+entry:
+    exit
+
