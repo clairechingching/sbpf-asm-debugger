@@ -1,0 +1,103 @@
+{
+  "name": "helios-sbpf-analyzer",
+  "displayName": "Helios SBPF Analyzer",
+  "description": "Assembles SBPF assembly code into bytecode",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "helios-sbpf-analyzer.analyzeBytecode",
+        "title": "Analyze SBPF Bytecode Length"
+      },
+      {
+        "command": "helios-sbpf-analyzer.assemble",
+        "title": "Assemble SBPF Assembly"
+      },
+      {
+        "command": "helios-sbpf-analyzer.run",
+        "title": "Run SBPF Bytecode"
+      }
+    ],
+    "languages": [
+      {
+        "id": "sbpf-asm",
+        "aliases": [
+          "sBPF Assembly",
+          "sbpf-asm"
+        ],
+        "extensions": [
+          ".s"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "helios-sbpf",
+        "label": "Helios SBPF Debugger",
+        "languages": [
+          "sbpf-asm"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Path to SBPF bytecode or assembly file"
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Automatically stop after launch",
+                "default": true
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "helios-sbpf",
+            "name": "Debug SBPF",
+            "request": "launch",
+            "program": "${file}",
+            "stopOnEntry": true
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "clean": "rm -rf out wasm/*.js wasm/*.d.ts wasm/*.wasm wasm/*.wasm.d.ts node_modules/.cache",
+    "clean:all": "npm run clean && rm -rf node_modules package-lock.json",
+    "compile": "npm run clean && npm install --save-dev @types/vscode vscode-debugadapter @vscode/debugprotocol && npm run build:wasm && tsc -p ./ && cp -r wasm out/",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "build:wasm": "./scripts/build-wasm.sh",
+    "debug": "npm run clean && npm run build:wasm && ls -la wasm/"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.100.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "@vscode/debugprotocol": "^1.68.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3",
+    "vscode-debugadapter": "^1.51.0"
+  }
+}

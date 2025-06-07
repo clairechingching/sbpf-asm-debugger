@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Helios SBPF Debugger",
+            "type": "helios-sbpf",   // Custom debugger type
+            "request": "launch",
+            "program": "${file}",   // Set this to the currently open file in the editor
+            "stopAtEntry": true,    // Optional: stop at the first line of the SBPF assembly
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "npm: watch" // Optional: watch for changes before running
+        },
+        {
+            "name": "Run Extension",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}/vsextension"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/vsextension/out/**/*.js"
+            ],
+            "preLaunchTask": "npm: watch"
+        }
+    ]
+}
