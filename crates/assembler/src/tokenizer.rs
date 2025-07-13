@@ -21,6 +21,14 @@ pub enum Token {
     StringLiteral(String, usize),
     Expression(String, usize),
     Comma(usize),
+
+    // for refactoring
+    Identifier(String, usize),
+    Number(i64, usize),
+    Colon(usize),
+    LeftBracket(usize),
+    RightBracket(usize),
+    BinaryOp(String, usize),
 }
 
 pub fn tokenize(source: &str) -> Result<Vec<Token>, String> {

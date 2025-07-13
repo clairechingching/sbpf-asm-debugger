@@ -1,6 +1,6 @@
 // Tokenizer and parser
 pub mod parser;
-pub mod tokenizer;
+pub mod lexer;
 pub mod opcode;
 pub mod instruction_verifier;
 pub mod utils;
@@ -28,6 +28,6 @@ pub type TokenizerError = String;
 pub use self::{
     parser::Parser,
     program::Program,
-    tokenizer::tokenize,
+    lexer::tokenize,
 };
 

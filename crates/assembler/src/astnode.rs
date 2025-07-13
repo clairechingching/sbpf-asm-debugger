@@ -1,96 +1,153 @@
 use crate::opcode::Opcode;
-use crate::tokenizer::{Token, ImmediateValue};
+use crate::lexer::{Token, ImmediateValue};
+use crate::dynsym::RelocationType;
 use crate::debuginfo::{DebugInfo, RegisterHint, RegisterType};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub enum ASTNode {
-    Directive {
-        name: String,
-        args: Vec<Token>,
-        line_number: usize,
-    },
-    Label {
-        name: String,
-        line_number: usize,
-    },
+    // only present in the AST
+    Directive(Directive),
+    GlobalDecl(GlobalDecl),
+    EquDecl(EquDecl),
+    ExternDecl(ExternDecl),
+    RodataDecl(RodataDecl),
+    Label(Label),
+    // present in the bytecode
     Instruction {
-        opcode: Opcode,
-        operands: Vec<Token>,
+        instruction: Instruction,
         offset: u64,
-        line_number: usize,
     },
-    RODataLabel {
-        name: String,
-        args: Vec<Token>,
+    ROData {
+        rodata: ROData,
         offset: u64,
-        line_number: usize,
     },
 }
 
+// remove this
+#[derive(Debug, Clone)]
+pub struct Directive {
+    pub name: String,
+    pub args: Vec<Token>,
+    pub line_number: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct GlobalDecl {
+    pub entry_label: String,
+    pub line_number: usize,
+}
+
+impl GlobalDecl {
+    pub fn get_entry_label(&self) -> String {
+        self.entry_label.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EquDecl {
+    pub name: String,
+    pub value: Token,
+    pub line_number: usize,
+}
+
+impl EquDecl {
+    pub fn get_name(&self) -> String {
+        self.name.clone()
+    }
+    pub fn get_val(&self) -> ImmediateValue {
+        match &self.value {
+            Token::ImmediateValue(val, _) => val.clone(),
+            _ => panic!("Invalid Equ declaration"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ExternDecl {
+    pub args: Vec<Token>,
+    pub line_number: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct RodataDecl {
+    pub line_number: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct Label {
+    pub name: String,
+    pub line_number: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct Instruction {
+    pub opcode: Opcode,
+    pub operands: Vec<Token>,
+    pub line_number: usize,
+}
+
+impl Instruction {
+    pub fn get_size(&self) -> u64 {
+        match self.opcode {
+            Opcode::Lddw => 16,
+            _ => 8,
+        }
+    }
+    pub fn needs_relocation(&self) -> bool {
+        match self.opcode {
+            Opcode::Call => true,
+            Opcode::Lddw => {
+                match &self.operands[1] {
+                    Token::Identifier(_, _) => true,
+                    _ => false,
+                }
+            },
+            _ => false,
+        }
+    }
+    pub fn get_relocation_info(&self) -> (RelocationType, String) {
+        match self.opcode {
+            Opcode::Lddw => {
+                match &self.operands[1] {
+                    Token::Identifier(name, _) => (RelocationType::RSbf64Relative, name.clone()),
+                    _ => panic!("Expected label operand"),
+                }
+            },
+            _ => {
+                if let Token::Identifier(name, _) = &self.operands[0] {
+                    (RelocationType::RSbfSyscall, name.clone()) 
+                } else {
+                    panic!("Expected label operand")
+                }
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ROData {
+    pub name: String,
+    pub args: Vec<Token>,
+    pub line_number: usize,
+}
+
+impl ROData {
+    pub fn get_size(&self) -> u64 {
+        let mut size = 0;
+        for arg in &self.args {
+            if let Token::StringLiteral(s, _) = arg {
+                size += s.len() as u64;
+            }
+        }
+        size
+    }
+}
+
 impl ASTNode {
-    pub fn get_offset(&self) -> Option<u64> {
-        match self {
-            ASTNode::Instruction { offset, .. } => Some(*offset),
-            _ => None,
-        }
-    }
-
-    pub fn get_opcode(&self) -> Option<&Opcode> {
-        match self {
-            ASTNode::Instruction { opcode, .. } => Some(opcode),
-            _ => None,
-        }
-    }
-
-    pub fn get_operands(&self) -> Option<&Vec<Token>> {
-        match self {
-            ASTNode::Instruction { operands, .. } => Some(operands),
-            _ => None,
-        }
-    }
-
-    pub fn get_label_name(&self) -> Option<&String> {
-        match self {
-            ASTNode::Label { name, .. } => Some(name),
-            ASTNode::RODataLabel { name, .. } => Some(name),
-            _ => None,
-        }
-    }
-
-    pub fn get_directive_name(&self) -> Option<&String> {
-        match self {
-            ASTNode::Directive { name, .. } => Some(name),
-            _ => None,
-        }
-    }
-
-    pub fn get_directive_args(&self) -> Option<&Vec<Token>> {
-        match self {
-            ASTNode::Directive { args, .. } => Some(args),
-            _ => None,
-        }
-    }
-
-    pub fn get_rodata_args(&self) -> Option<&Vec<Token>> {
-        match self {
-            ASTNode::RODataLabel { args, .. } => Some(args),
-            _ => None,
-        }
-    }
-
-    pub fn get_line_number(&self) -> usize {
-        match self {
-            ASTNode::Directive { line_number, .. } => *line_number,
-            ASTNode::Label { line_number, .. } => *line_number,
-            ASTNode::Instruction { line_number, .. } => *line_number,
-            ASTNode::RODataLabel { line_number, .. } => *line_number,
-        }
-    }
-
     pub fn bytecode_with_debug_map(&self) -> Option<(Vec<u8>, HashMap<u64, DebugInfo>)> {
         match self {
-            ASTNode::Instruction { opcode, operands, offset, line_number } => {
+            ASTNode::Instruction { instruction: Instruction { opcode, operands, line_number }, offset } => {
                 let mut bytes = Vec::new();
                 let mut line_map = HashMap::new();
                 let mut debug_map = HashMap::new();
@@ -127,7 +184,7 @@ impl ASTNode {
 
                         [Token::Register(reg, _), Token::ImmediateValue(imm, _)] => {
                             // 1 byte register number (strip 'r' prefix)
-                            bytes.push(reg.strip_prefix("r").unwrap().parse::<u8>().unwrap());
+                            bytes.push(*reg);
                             
                             // 2 bytes of zeros (offset/reserved)
                             bytes.extend_from_slice(&[0, 0]);
@@ -137,7 +194,7 @@ impl ASTNode {
                                 ImmediateValue::Int(val) => *val as i32,
                                 ImmediateValue::Addr(val) => {
                                     debug_info.register_hint = RegisterHint {
-                                        register: reg.strip_prefix("r").unwrap().parse().unwrap(),
+                                        register: *reg as usize,
                                         register_type: RegisterType::Addr
                                     };
                                     *val as i32
@@ -148,7 +205,7 @@ impl ASTNode {
 
                         [Token::Register(reg, _), Token::ImmediateValue(imm, _), Token::ImmediateValue(offset, _)] => {
                             // 1 byte register number (strip 'r' prefix)
-                            bytes.push(reg.strip_prefix("r").unwrap().parse::<u8>().unwrap());
+                            bytes.push(*reg);
                             
                             // 2 bytes of offset in little-endian
                             let offset16 = match offset {
@@ -162,7 +219,7 @@ impl ASTNode {
                                 ImmediateValue::Int(val) => *val as i32,
                                 ImmediateValue::Addr(val) => {
                                     debug_info.register_hint = RegisterHint {
-                                        register: reg.strip_prefix("r").unwrap().parse().unwrap(),
+                                        register: *reg as usize,
                                         register_type: RegisterType::Addr
                                     };
                                     *val as i32
@@ -173,28 +230,25 @@ impl ASTNode {
                         
                         [Token::Register(dst, _), Token::Register(src, _)] => {
                             // Convert register strings to numbers
-                            let dst_num = dst.strip_prefix("r").unwrap().parse::<u8>().unwrap();
-                            let src_num = src.strip_prefix("r").unwrap().parse::<u8>().unwrap();
+                            let dst_num = dst;
+                            let src_num = src;
                             
                             // Combine src and dst into a single byte (src in high nibble, dst in low nibble)
                             let reg_byte = (src_num << 4) | dst_num;
                             bytes.push(reg_byte);
                         },
-                        [Token::Register(dst, _), Token::Expression(expr, _)] => {
-                            // Parse the expression to extract the base register and offset
-                            if let Some((base_reg, offset)) = parse_expression(expr) {
-                                // Convert register strings to numbers
-                                let dst_num = dst.strip_prefix("r").unwrap().parse::<u8>().unwrap();
-                                let base_reg_num = base_reg.strip_prefix("r").unwrap().parse::<u8>().unwrap();
-                                
-                                // Combine base register and destination register into a single byte
-                                let reg_byte = (base_reg_num << 4) | dst_num;
-                                bytes.push(reg_byte);
-                                
-                                // Add the offset as a 16-bit value in little-endian
-                                let offset16 = offset as u16;
-                                bytes.extend_from_slice(&offset16.to_le_bytes());
-                            }
+                        [Token::Register(dst, _), Token::Register(reg, _), Token::ImmediateValue(offset, _)] => {
+                            // Combine base register and destination register into a single byte
+                            let reg_byte = (reg << 4) | dst;
+                            bytes.push(reg_byte);
+                            
+                            // TODO : should only be an int
+                            // Add the offset as a 16-bit value in little-endian
+                            let offset16 = match offset {
+                                ImmediateValue::Int(val) => *val as u16,
+                                ImmediateValue::Addr(val) => *val as u16,
+                            };
+                            bytes.extend_from_slice(&offset16.to_le_bytes());
                         },
                         
                         _ => {}
@@ -211,7 +265,7 @@ impl ASTNode {
                 
                 Some((bytes, debug_map))
             },
-            ASTNode::RODataLabel { name: _, args, offset, line_number } => {
+            ASTNode::ROData { rodata: ROData { name: _, args, line_number }, offset } => {
                 let mut bytes = Vec::new();
                 let mut line_map = HashMap::<u64, usize>::new();
                 let mut debug_map = HashMap::<u64, DebugInfo>::new();

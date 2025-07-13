@@ -1,5 +1,5 @@
 use crate::opcode::Opcode;
-use crate::tokenizer::Token;
+use crate::lexer::Token;
 
 pub fn verify_instruction(opcode: &Opcode, operands: &[Token]) -> Result<(), String> {
     match opcode {
@@ -67,18 +67,6 @@ pub fn verify_instruction(opcode: &Opcode, operands: &[Token]) -> Result<(), Str
                 _ => Err(format!("Invalid operands for {:?}", opcode)),
             }
         }
-        // load operations - takes register and offset/immediate value
-        Opcode::Ldxb | Opcode::Ldxh | Opcode::Ldxw | Opcode::Ldxdw => {
-            if operands.len() != 2 {
-                return Err(format!("{} reg, offset/immediate 2", opcode.to_str()));
-            }
-            match (&operands[0], &operands[1]) {
-                (Token::Register(_reg, _), Token::Expression(_value, _)) => {
-                    Ok(())
-                }
-                _ => Err(format!("{} reg, offset/immediate", opcode.to_str())),
-            }
-        },
         // store operations - deprecated
         Opcode::Stb | Opcode::Sth | Opcode::Stw | Opcode::Stdw => {
             Err(format!("{} is deprecated", opcode.to_str()))

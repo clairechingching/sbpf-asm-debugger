@@ -2,9 +2,10 @@ use crate::astnode::ASTNode;
 use crate::header::SectionHeader;
 use crate::dynsym::DynamicSymbol;
 use crate::dynsym::RelDyn;
-use crate::tokenizer::Token;
+use crate::lexer::Token;
 use crate::debuginfo::DebugInfo;
 use std::collections::HashMap;
+use crate::astnode::ROData;
 
 // Base Section trait
 pub trait Section {
@@ -177,7 +178,7 @@ impl DataSection {
     pub fn rodata(&self) -> Vec<(String, usize, String)> {
         let mut ro_data_labels = Vec::new();
         for node in &self.nodes {    
-            if let ASTNode::RODataLabel { name, args, offset, .. } = node {
+            if let ASTNode::ROData { rodata: ROData { name, args, line_number }, offset } = node {
                 if let Some(Token::StringLiteral(str_literal, _)) = args.get(1) {
                     ro_data_labels.push((name.clone(), offset.clone() as usize, str_literal.clone()));
                 }

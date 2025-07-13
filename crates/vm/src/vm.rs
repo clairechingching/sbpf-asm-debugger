@@ -5,6 +5,12 @@ use helios_assembler::debuginfo::DebugInfo;
 use helios_assembler::debuginfo::RegisterType;
 use std::collections::HashMap;
 
+// Memory layout constants for map-based memory design
+// pub const STACK_START: u64 = 0x200000000;
+// pub const HEAP_START: usize = 0x300000000;
+
+// writable memory region
+pub const MEMORY_INPUT_DATA_START: u64 = 0x400000000;
 
 #[derive(Debug, Clone)]
 pub struct Register {
@@ -26,6 +32,7 @@ pub struct VM {
 pub struct VMState {
     pub registers: [Register; 11],
     pub memory: Vec<u8>,
+    // program pointer
     pub pc: usize,
     pub exited: bool,
 }
@@ -38,9 +45,11 @@ impl VMState {
 
     pub fn reset(&mut self) {
         self.registers = [
+            // initialze r0 to 0 (true)
             Register { name: "r0".to_string(), value: 0, register_type: RegisterType::Int },
-             // r1 points to the start of the memory
-            Register { name: "r1".to_string(), value: 0, register_type: RegisterType::Addr },
+            // initialze r1 to the start of memory input data
+            Register { name: "r1".to_string(), value: MEMORY_INPUT_DATA_START, register_type: RegisterType::Addr },
+            // initialze the rest registers to null
             Register { name: "r2".to_string(), value: 0, register_type: RegisterType::Null },
             Register { name: "r3".to_string(), value: 0, register_type: RegisterType::Null },
             Register { name: "r4".to_string(), value: 0, register_type: RegisterType::Null },
@@ -51,6 +60,7 @@ impl VMState {
             Register { name: "r9".to_string(), value: 0, register_type: RegisterType::Null },
             Register { name: "r10".to_string(), value: 0, register_type: RegisterType::Null },
         ];
+        // figure out memory size
         self.memory = vec![0u8; 20000];
         self.pc = 0;
         self.exited = false;
@@ -69,11 +79,12 @@ impl VMState {
 impl VM {
     pub fn new() -> Self {
         VM {
+            // MISC TODO : self.reset()
             state: VMState {
                 registers: [
                     Register { name: "r0".to_string(), value: 0, register_type: RegisterType::Int },
                     // r1 points to the start of the memory
-                    Register { name: "r1".to_string(), value: 0, register_type: RegisterType::Addr },
+                    Register { name: "r1".to_string(), value: MEMORY_INPUT_DATA_START, register_type: RegisterType::Addr },
                     Register { name: "r2".to_string(), value: 0, register_type: RegisterType::Null },
                     Register { name: "r3".to_string(), value: 0, register_type: RegisterType::Null },
                     Register { name: "r4".to_string(), value: 0, register_type: RegisterType::Null },
@@ -84,8 +95,6 @@ impl VM {
                     Register { name: "r9".to_string(), value: 0, register_type: RegisterType::Null },
                     Register { name: "r10".to_string(), value: 0, register_type: RegisterType::Null },
                 ],
-                // pre-allocate 20k of memory
-                // TODO: figure out memory size
                 memory: vec![0u8; 20000],
                 pc: 0,
                 exited: false,
@@ -122,15 +131,17 @@ impl VM {
         Ok(())
     }
 
-    pub fn set_instruction_data(&mut self, data: &[u8]) {
-        let start_addr = 10352;
-        self.state.memory[start_addr..start_addr + data.len()].copy_from_slice(data);
+    pub fn load_input_data(&mut self, account_number: u64, data: &[u8], data_type: &str) {
+        // hard code account number to 0
+        let start_addr = 8;
+        self.state.memory[8] = data.len() as u8;
+        self.state.memory[start_addr + 8 .. start_addr + 8 + data.len()].copy_from_slice(data);
     }
 
     pub fn get_instruction_data(&self) -> Vec<u8> {
-        let start_addr = 10352;
-        // trim tailing zeros for now
-        self.state.memory[start_addr..].to_vec().into_iter().take_while(|&x| x != 0).collect()
+        let start_addr = 8;
+        let len = self.state.memory[start_addr] as usize;
+        self.state.memory[start_addr + 8 .. start_addr + 8 + len].to_vec()
     }
 
     pub fn is_exited(&self) -> bool {
@@ -140,6 +151,7 @@ impl VM {
     pub fn run(&mut self) -> Result<u64, String> {
         let program = self.program.as_ref().ok_or("No program loaded")?;
         
+        // BUG TODO : update it to call step_instruction()
         while !self.state.exited {
             // Get the current instruction bytes
             let current_bytes = &program.bytecode[self.state.pc..];
@@ -163,8 +175,7 @@ impl VM {
                 self.state.pc += size;
             }
         }
-        println!("line map: {:?}", self.line_map);
-        println!("Log: {}", get_log());
+        
         // Return the result from r0
         Ok(self.state.registers[0].value)
     }
@@ -182,15 +193,10 @@ impl VM {
         };
         
         let (instruction, size) = decode_instruction(current_bytes)?;
-        log_message(&format!("instruction: {:?} pc: {}", instruction, self.state.pc));
         instruction.execute(&mut self.state, program, debug_info)?;
-        log_message(&format!("pc: {}", self.state.pc));
         self.state.pc += size;
-        log_message(&format!("pc: {}", self.state.pc));
         Ok(())
     }
-
-
 
     pub fn get_entry_point(&self) -> usize {
         self.entry_point.unwrap()

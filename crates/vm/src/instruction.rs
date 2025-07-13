@@ -1,4 +1,5 @@
 use crate::vm::VMState;
+use crate::vm::MEMORY_INPUT_DATA_START;
 use crate::program::Program;
 use crate::log_buffer::log_message;
 use helios_assembler::opcode::Opcode;
@@ -12,6 +13,7 @@ pub trait Instruction {
 pub enum InstructionType {
     Lddw(Lddw),
     Ldxb(Ldxb),
+    Ldxdw(Ldxdw),
     AddImm(AddImm),
     AddReg(AddReg),
     SubImm(SubImm),
@@ -28,6 +30,7 @@ impl Instruction for InstructionType {
         match self {
             InstructionType::Lddw(instr) => instr.execute(vm, program, debug_info),
             InstructionType::Ldxb(instr) => instr.execute(vm, program, debug_info),
+            InstructionType::Ldxdw(instr) => instr.execute(vm, program, debug_info),
             InstructionType::AddImm(instr) => instr.execute(vm, program, debug_info),
             InstructionType::AddReg(instr) => instr.execute(vm, program, debug_info),
             InstructionType::SubImm(instr) => instr.execute(vm, program, debug_info),
@@ -96,6 +99,35 @@ impl Ldxb {
 }
 
 impl Instruction for Ldxb {
+    fn execute(&self, vm: &mut VMState, _program: &Program, _debug_info: Option<&DebugInfo>) -> Result<(), String> {
+        let base_addr = vm.registers[self.base_reg].value as usize;
+        let offset = self.offset as usize;
+        vm.update_register(self.register, vm.memory[base_addr + offset] as u64, RegisterType::Int);
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct Ldxdw {
+    pub register: usize,
+    pub base_reg: usize,
+    pub offset: u16,
+}
+
+impl Ldxdw {
+    pub fn decode(bytes: &[u8]) -> Result<Self, String> {
+        if bytes.len() < 16 {
+            return Err("Not enough bytes for Ldxdw instruction".to_string());
+        }
+        Ok(Ldxdw {
+            register: (bytes[1] & 0x0F) as usize,
+            base_reg: (bytes[1] >> 4) as usize,
+            offset: u16::from_le_bytes([bytes[2], bytes[3]]),
+        })
+    }
+}
+
+impl Instruction for Ldxdw {
     fn execute(&self, vm: &mut VMState, _program: &Program, _debug_info: Option<&DebugInfo>) -> Result<(), String> {
         let base_addr = vm.registers[self.base_reg].value as usize;
         let offset = self.offset as usize;
@@ -328,12 +360,19 @@ impl Instruction for Call {
                 // sol_log_ implementation
                 let r1 = vm.registers[1].value; // pointer to buffer
                 let r2 = vm.registers[2].value; // length of buffer
-                
+                let mut buffer = Vec::new();
                 if r2 > 0 {
-                    // Read memory at r1 for r2 bytes
-                    let buffer = program.read(r1 as u64, r2 as u64)
-                        .map_err(|e| format!("Failed to read memory: {}", e))?;
-                
+                    if r1 < MEMORY_INPUT_DATA_START {
+                        // Read memory at r1 for r2 bytes
+                        buffer = program.read(r1 as u64, r2 as u64)
+                            .map_err(|e| format!("Failed to read memory: {}", e))?;
+                    } else {
+                        // TODO : add a read function to vm
+                        // Read memory at r1 for r2 bytes
+                        let memory_ptr = r1 - MEMORY_INPUT_DATA_START;
+                        buffer = vm.memory[memory_ptr as usize..memory_ptr as usize + r2 as usize].to_vec();
+                    }
+
                     // Convert buffer to string and print
                     let message = String::from_utf8_lossy(&buffer);
                     log_message(&format!("sol_log_: {}", message));
@@ -372,6 +411,10 @@ pub fn decode_instruction(bytes: &[u8]) -> Result<(InstructionType, usize), Stri
         Opcode::Ldxb => {
             let ldxb = Ldxb::decode(bytes)?;
             (InstructionType::Ldxb(ldxb), 8)
+        }
+        Opcode::Ldxdw => {
+            let ldxdw = Ldxdw::decode(bytes)?;
+            (InstructionType::Ldxdw(ldxdw), 8)
         }
         Opcode::Add64Imm | Opcode::Add32Imm => {
             let AddImm = AddImm::decode(bytes)?;

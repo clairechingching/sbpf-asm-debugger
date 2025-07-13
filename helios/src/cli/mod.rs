@@ -1,6 +1,6 @@
 mod assemble;
 mod run;
-
+mod tokenize;
 use std::io::Write;
 
 use clap::{CommandFactory, Parser, Subcommand};
@@ -32,6 +32,12 @@ pub enum Commands {
 
     #[command(about = "Output shell completion code for the specified shell (bash, zsh, fish)")]
     Completions { shell: clap_complete::Shell },
+
+    #[command(about = "Tokenize a source file")]
+    Tokenize {
+        #[clap(flatten)]
+        command: tokenize::Command,
+    },
 
     #[command(visible_alias = "asm", about = "Translate sBPF Assembly to bytecode")]
     Assemble {
@@ -67,6 +73,7 @@ impl Cli {
             }
             Commands::Assemble { command } => command.run().map_err(Error::from),
             Commands::Run { command } => command.run().map_err(Error::from),
+            Commands::Tokenize { command } => command.run().map_err(Error::from),
         }
     }
 }

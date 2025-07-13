@@ -137,10 +137,10 @@ pub fn initialize(assembly: &str) -> Result<u64, String> {
 }
 
 #[wasm_bindgen]
-pub fn set_instruction_data(data: &[u8]) {
+pub fn load_input_data(account_number: u64, data: &[u8], data_type: &str) {
     VM_INSTANCE.with(|vm| {
         let mut vm = vm.borrow_mut();
-        vm.set_instruction_data(data);
+        vm.load_input_data(account_number, data, data_type);
     })
 }
 

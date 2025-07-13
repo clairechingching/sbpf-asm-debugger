@@ -10,6 +10,8 @@
             "name": "Debug SBPF",
             "request": "launch",
             "program": "${file}",
+            "accountNumber": 0,
+            "instructionData": "Hello, Scale or Die!",
             "stopOnEntry": true
         }
     ]

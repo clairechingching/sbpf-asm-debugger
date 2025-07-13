@@ -11,7 +11,8 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 import * as heliosVM from '../wasm/helios_vm';
 
 interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
-  instructionData?: number[];
+  accountNumber?: number;
+  instructionData?: number[] | string;
 }
 
 class SBPFDebugSession extends DebugSession {
@@ -170,9 +171,21 @@ class SBPFDebugSession extends DebugSession {
     heliosVM.clear_log();
     heliosVM.initialize(code);
     
-    const { instructionData = [] } = args as LaunchRequestArguments;
-    const instructionBytes = new Uint8Array(instructionData);
-    heliosVM.set_instruction_data(instructionBytes);
+    const { accountNumber = 0, instructionData = [] } = args as LaunchRequestArguments;
+    
+    let instructionBytes: Uint8Array;
+    let instructionDataType: 'string' | 'number';
+    if (typeof instructionData === 'string') {
+      // Convert string to Uint8Array (treating each character as a byte)
+      instructionBytes = new Uint8Array(instructionData.split('').map(char => char.charCodeAt(0)));
+      instructionDataType = 'string';
+    } else {
+      // instructionData is already a number array
+      instructionBytes = new Uint8Array(instructionData);
+      instructionDataType = 'number';
+    }
+    
+    heliosVM.load_input_data(BigInt(accountNumber), instructionBytes, instructionDataType);
 
     // Get initial state
     this._currentRegisters = heliosVM.get_registers();
