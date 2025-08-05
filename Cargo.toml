@@ -26,7 +26,7 @@ num-traits    = "0.2"
 shadow-rs     = "0.38"
 snafu         = "0.8"
 
-helios-assembler = { path = "./crates/assembler" }
+sbpf-assembler = { path = "../../SBPF/sbpf/crates/assembler" }
 helios-vm = { path = "./crates/vm" }
 
 [profile.release]

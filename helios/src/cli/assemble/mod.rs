@@ -25,16 +25,16 @@ impl Command {
         });
 
         // Tokenize the source.
-        let tokens = helios_assembler::tokenize(&source_code)
+        let tokens = sbpf_assembler::tokenize(&source_code)
             .map_err(|e| Error::Tokenize { source: e })?;
 
         // Parse the tokens into an AST.
-        let parse_result = helios_assembler::Parser::new(tokens)
+        let parse_result = sbpf_assembler::Parser::new(tokens)
             .parse()
             .map_err(|e| Error::Parse { source: e })?;
 
         // Construct program from ParseResult.
-        let program = helios_assembler::Program::from_parse_result(parse_result);
+        let program = sbpf_assembler::Program::from_parse_result(parse_result);
 
         // Assemble the source code and emit the bytecode.
         let bytecode = program.emit_bytecode();

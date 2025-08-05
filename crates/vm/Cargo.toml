@@ -20,6 +20,7 @@ num-derive = "0.4"
 num-traits = "0.2"
 wasm-bindgen = "0.2.100"
 
-helios-assembler = { workspace = true }
+sbpf-assembler = { workspace = true }
 serde = { version = "1.0.219", features = ["derive"] }
 serde-wasm-bindgen = "0.6.5"
+codespan-reporting = "0.12.0"

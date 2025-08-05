@@ -23,7 +23,7 @@ exitcode      = { workspace = true }
 shadow-rs     = { workspace = true }
 snafu         = { workspace = true }
 
-helios-assembler = { workspace = true }
+sbpf-assembler = { workspace = true }
 helios-vm = { workspace = true }
 
 [build-dependencies]

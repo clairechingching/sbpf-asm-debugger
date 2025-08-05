@@ -3,13 +3,14 @@ pub mod program;
 pub mod instruction;
 pub mod log_buffer;
 
-use helios_assembler::{Parser, Program};
+use sbpf_assembler::{Parser, Program};
 use crate::vm::VM;
-use helios_assembler::debuginfo::RegisterType;
+use sbpf_assembler::debuginfo::RegisterType;
 use std::cell::RefCell;
 use serde::Serialize;
 use serde_wasm_bindgen::to_value;
 use wasm_bindgen::prelude::*;
+use codespan_reporting::files::SimpleFile;
 
 #[derive(Serialize)]
 struct Register {
@@ -88,13 +89,14 @@ pub fn get_memory() -> JsValue {
 }
 
 #[wasm_bindgen]
-pub fn assemble(assembly: &str) -> Result<Vec<u8>, String> {
-    let tokens = match helios_assembler::tokenize(assembly) {
+pub fn assemble(assembly: &str, path: &str) -> Result<Vec<u8>, String> {
+    let file = SimpleFile::new(path.to_string(), assembly.to_string());
+    let tokens = match sbpf_assembler::tokenize(assembly) {
         Ok(tokens) => tokens,
         Err(e) => return Err(format!("Tokenizer error: {}", e)),
     };
 
-    let mut parser = Parser::new(tokens);
+    let mut parser = Parser::new(tokens, &file);
     let parse_result = match parser.parse() {
         Ok(program) => program,
         Err(e) => return Err(format!("Parser error: {}", e)),
@@ -123,12 +125,12 @@ pub fn assemble(assembly: &str) -> Result<Vec<u8>, String> {
 }
 
 #[wasm_bindgen]
-pub fn initialize(assembly: &str) -> Result<u64, String> {
+pub fn initialize(assembly: &str, path: &str) -> Result<u64, String> {
     VM_INSTANCE.with(|vm| {
         let mut vm = vm.borrow_mut();
         vm.reset();
     });
-    let bytecode = assemble(assembly)?;
+    let bytecode = assemble(assembly, path)?;
     VM_INSTANCE.with(|vm| {
         let mut vm = vm.borrow_mut();
         vm.load_program(bytecode);
@@ -145,8 +147,8 @@ pub fn load_input_data(account_number: u64, data: &[u8], data_type: &str) {
 }
 
 #[wasm_bindgen]
-pub fn run(assembly: &str) -> Result<u64, String> {
-    let bytecode = assemble(assembly)?;
+pub fn run(assembly: &str, path: &str) -> Result<u64, String> {
+    let bytecode = assemble(assembly, path)?;
     VM_INSTANCE.with(|vm| {
         let mut vm = vm.borrow_mut();
         vm.load_program(bytecode)?;

@@ -169,7 +169,7 @@ class SBPFDebugSession extends DebugSession {
     const code = editor?.document.getText() || '';
 
     heliosVM.clear_log();
-    heliosVM.initialize(code);
+    heliosVM.initialize(code, editor?.document.uri.fsPath || '');
     
     const { accountNumber = 0, instructionData = [] } = args as LaunchRequestArguments;
     

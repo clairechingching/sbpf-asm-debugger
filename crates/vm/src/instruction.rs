@@ -2,8 +2,8 @@ use crate::vm::VMState;
 use crate::vm::MEMORY_INPUT_DATA_START;
 use crate::program::Program;
 use crate::log_buffer::log_message;
-use helios_assembler::opcode::Opcode;
-use helios_assembler::debuginfo::{RegisterType, RegisterHint, DebugInfo};
+use sbpf_assembler::opcode::Opcode;
+use sbpf_assembler::debuginfo::{RegisterType, RegisterHint, DebugInfo};
 
 pub trait Instruction {
     fn execute(&self, vm: &mut VMState, program: &Program, debug_info: Option<&DebugInfo>) -> Result<(), String>;

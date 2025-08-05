@@ -1,8 +1,8 @@
 use crate::program::Program;
 use crate::instruction::{Instruction, decode_instruction};
 use crate::log_buffer::{get_log, log_message};
-use helios_assembler::debuginfo::DebugInfo;
-use helios_assembler::debuginfo::RegisterType;
+use sbpf_assembler::debuginfo::DebugInfo;
+use sbpf_assembler::debuginfo::RegisterType;
 use std::collections::HashMap;
 
 // Memory layout constants for map-based memory design
